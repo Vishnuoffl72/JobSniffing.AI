@@ -1,0 +1,4 @@
+- need to get candidate experience input and pass to apify actors to search based on experience
+- the job posted hours in main results is not displaying correctly
+- need to remove the text area and add skills instead. like type skill and enter it will be added (ex: skills in naukri)
+- remove the default text in the input area and add placeholder

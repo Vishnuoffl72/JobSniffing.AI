@@ -1,0 +1,611 @@
+<div class="min-h-screen bg-[#090a0f] text-slate-100 selection:bg-emerald-500 selection:text-black">
+  <!-- Top Bar / Header with View Navigation Tabs -->
+  <header class="border-b border-slate-800/80 bg-[#0c0d14]/70 backdrop-blur-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center font-black text-black shadow-lg shadow-emerald-500/20">
+          JS
+        </div>
+        <div>
+          <span class="text-lg font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
+            JobSniffing AI
+          </span>
+          <span class="ml-2 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Enterprise v1.0
+          </span>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs: Hero Search vs Search History -->
+      <nav class="flex items-center space-x-1 bg-[#141624] p-1 rounded-xl border border-slate-800">
+        <button
+          type="button"
+          (click)="switchTab('search')"
+          [class.bg-emerald-500]="activeTab === 'search'"
+          [class.text-black]="activeTab === 'search'"
+          [class.font-semibold]="activeTab === 'search'"
+          [class.text-slate-300]="activeTab !== 'search'"
+          class="px-4 py-1.5 text-xs rounded-lg transition-all duration-150 flex items-center space-x-1.5"
+        >
+          <span>⚡ Live Search</span>
+          <span
+            *ngIf="currentSearchJobs.length > 0"
+            class="text-[10px] px-1.5 py-0.5 rounded-full"
+            [ngClass]="activeTab === 'search' ? 'bg-black/20 text-black' : 'bg-slate-800 text-slate-300'"
+          >
+            {{ currentSearchJobs.length }}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          (click)="switchTab('history')"
+          [class.bg-emerald-500]="activeTab === 'history'"
+          [class.text-black]="activeTab === 'history'"
+          [class.font-semibold]="activeTab === 'history'"
+          [class.text-slate-300]="activeTab !== 'history'"
+          class="px-4 py-1.5 text-xs rounded-lg transition-all duration-150 flex items-center space-x-1.5"
+        >
+          <span>📅 Search History</span>
+          <span
+            *ngIf="availableDates.length > 0"
+            class="text-[10px] px-1.5 py-0.5 rounded-full"
+            [ngClass]="activeTab === 'history' ? 'bg-black/20 text-black' : 'bg-slate-800 text-slate-300'"
+          >
+            {{ availableDates.length }}
+          </span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    
+    <!-- ========================================== -->
+    <!-- VIEW 1: HERO / LIVE SEARCH (Current Run Only) -->
+    <!-- ========================================== -->
+    <div *ngIf="activeTab === 'search'" class="space-y-8">
+      <!-- Search & Scrape Configuration Panel -->
+      <section class="bg-gradient-to-b from-[#11131c] to-[#0d0e17] rounded-2xl border border-slate-800/80 shadow-2xl overflow-hidden p-6 sm:p-8">
+        <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800/80 pb-5">
+          <div>
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              <span>Job Search & Intelligence Configuration</span>
+            </h1>
+            <p class="text-sm text-slate-400 mt-1">
+              Specify targeting filters, paste candidate resume, and trigger synchronized multi-platform scraping & AI scoring.
+            </p>
+          </div>
+        </div>
+
+        <form [formGroup]="searchForm" (ngSubmit)="onSubmit()" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <!-- Job Title Input -->
+            <div class="space-y-1.5">
+              <label for="jobTitle" class="block text-xs font-medium text-slate-300 uppercase tracking-wider">
+                Target Role / Title <span class="text-emerald-400">*</span>
+              </label>
+              <div class="relative">
+                <input
+                  id="jobTitle"
+                  type="text"
+                  formControlName="jobTitle"
+                  required
+                  class="w-full bg-[#161824] border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition duration-150"
+                  placeholder="e.g. Full Stack Developer, Tech Lead"
+                />
+              </div>
+              <div *ngIf="searchForm.get('jobTitle')?.touched && searchForm.get('jobTitle')?.invalid" class="text-xs text-rose-400 flex items-center gap-1 pt-1">
+                <span>✕</span> Job title is required.
+              </div>
+            </div>
+
+            <!-- Location Input -->
+            <div class="space-y-1.5">
+              <label for="location" class="block text-xs font-medium text-slate-300 uppercase tracking-wider">
+                Target Location <span class="text-emerald-400">*</span>
+              </label>
+              <input
+                id="location"
+                type="text"
+                formControlName="location"
+                required
+                class="w-full bg-[#161824] border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition duration-150"
+                placeholder="e.g. Bangalore, Chennai, Remote"
+              />
+              <div *ngIf="searchForm.get('location')?.touched && searchForm.get('location')?.invalid" class="text-xs text-rose-400 flex items-center gap-1 pt-1">
+                <span>✕</span> Location is required.
+              </div>
+            </div>
+
+            <!-- Time Posted Filter Dropdown -->
+            <div class="space-y-1.5">
+              <label for="postedWithinHours" class="block text-xs font-medium text-slate-300 uppercase tracking-wider">
+                Freshness Threshold <span class="text-emerald-400">*</span>
+              </label>
+              <select
+                id="postedWithinHours"
+                formControlName="postedWithinHours"
+                required
+                class="w-full bg-[#161824] border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition duration-150 appearance-none cursor-pointer"
+              >
+                <option [value]="12">Past 12 Hours (High Freshness)</option>
+                <option [value]="24">Past 24 Hours (Standard)</option>
+                <option [value]="48">Past 48 Hours</option>
+                <option [value]="72">Past 3 Days</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Resume Textarea -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label for="resumeText" class="block text-xs font-medium text-slate-300 uppercase tracking-wider">
+                Candidate Resume / Tech Profile <span class="text-emerald-400">*</span>
+              </label>
+              <span class="text-xs text-slate-400">Used for focused keyword search & AI scoring</span>
+            </div>
+            <textarea
+              id="resumeText"
+              rows="4"
+              formControlName="resumeText"
+              required
+              class="w-full bg-[#161824] border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition duration-150 font-mono text-xs leading-relaxed"
+              placeholder="Paste candidate resume, key skills, experience, or tech stack summary..."
+            ></textarea>
+            <div *ngIf="searchForm.get('resumeText')?.touched && searchForm.get('resumeText')?.invalid" class="text-xs text-rose-400 flex items-center gap-1 pt-1">
+              <span>✕</span> Resume content is required for AI matching.
+            </div>
+          </div>
+
+          <!-- Submit Button & Execution Status -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+            <div class="text-xs text-slate-400">
+              <span *ngIf="activeBatchTime" class="inline-flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                Current Search Execution: <span class="text-slate-300 font-mono">{{ activeBatchTime | date:'medium' }}</span>
+              </span>
+            </div>
+
+            <button
+              type="submit"
+              [disabled]="isLoading"
+              class="w-full sm:w-auto px-7 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-semibold text-sm shadow-lg shadow-emerald-500/25 transition-all duration-200 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            >
+              <svg
+                *ngIf="isLoading"
+                class="animate-spin -ml-1 mr-2 h-4 w-4 text-black"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <span>{{ isLoading ? 'Scraping & AI Matching...' : 'Search & Scrape Jobs' }}</span>
+            </button>
+          </div>
+
+          <!-- Error Notification Banner -->
+          <div *ngIf="errorMessage" class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span>⚠️</span>
+              <span>{{ errorMessage }}</span>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <!-- Current Run Metrics -->
+      <section *ngIf="hasSearchedCurrentSession" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="bg-[#10121b] border border-slate-800/80 rounded-xl p-4">
+          <p class="text-xs text-slate-400 font-medium">Scraped in This Run</p>
+          <p class="text-2xl font-bold text-white mt-1">{{ currentSearchJobs.length }}</p>
+          <span class="text-[11px] text-slate-500">Current session results</span>
+        </div>
+
+        <div class="bg-[#10121b] border border-slate-800/80 rounded-xl p-4">
+          <p class="text-xs text-slate-400 font-medium">Applied Jobs (This Run)</p>
+          <p class="text-2xl font-bold text-purple-400 mt-1">{{ currentAppliedCount }}</p>
+          <span class="text-[11px] text-slate-500">Persisted in SQLite</span>
+        </div>
+      </section>
+
+      <!-- Current Run Results Table -->
+      <section class="bg-[#0f111a] rounded-2xl border border-slate-800/80 shadow-2xl overflow-hidden">
+        <div class="p-5 border-b border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-bold text-white">Current Search Results</h2>
+            <p class="text-xs text-slate-400 mt-0.5">
+              {{ hasSearchedCurrentSession ? 'Showing freshly scraped results from your latest search run' : 'Perform a search above to generate current instance results' }}
+            </p>
+          </div>
+
+          <!-- Platform Filter -->
+          <div *ngIf="currentSearchJobs.length > 0" class="flex items-center space-x-2">
+            <span class="text-xs text-slate-400">Platform:</span>
+            <div class="inline-flex rounded-lg bg-[#161824] p-1 border border-slate-800">
+              <button
+                type="button"
+                (click)="selectedPlatformFilter = 'All'"
+                [class.bg-emerald-500]="selectedPlatformFilter === 'All'"
+                [class.text-black]="selectedPlatformFilter === 'All'"
+                [class.text-slate-300]="selectedPlatformFilter !== 'All'"
+                class="px-2.5 py-1 text-xs rounded-md font-medium transition duration-150"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                (click)="selectedPlatformFilter = 'LinkedIn'"
+                [class.bg-emerald-500]="selectedPlatformFilter === 'LinkedIn'"
+                [class.text-black]="selectedPlatformFilter === 'LinkedIn'"
+                [class.text-slate-300]="selectedPlatformFilter !== 'LinkedIn'"
+                class="px-2.5 py-1 text-xs rounded-md font-medium transition duration-150"
+              >
+                LinkedIn
+              </button>
+              <button
+                type="button"
+                (click)="selectedPlatformFilter = 'Naukri'"
+                [class.bg-emerald-500]="selectedPlatformFilter === 'Naukri'"
+                [class.text-black]="selectedPlatformFilter === 'Naukri'"
+                [class.text-slate-300]="selectedPlatformFilter !== 'Naukri'"
+                class="px-2.5 py-1 text-xs rounded-md font-medium transition duration-150"
+              >
+                Naukri
+              </button>
+              <button
+                type="button"
+                (click)="selectedPlatformFilter = 'Instahyre'"
+                [class.bg-emerald-500]="selectedPlatformFilter === 'Instahyre'"
+                [class.text-black]="selectedPlatformFilter === 'Instahyre'"
+                [class.text-slate-300]="selectedPlatformFilter !== 'Instahyre'"
+                class="px-2.5 py-1 text-xs rounded-md font-medium transition duration-150"
+              >
+                Instahyre
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Current Results Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-[#141622]/60 text-slate-400 text-[11px] uppercase tracking-wider border-b border-slate-800/80">
+                <th scope="col" class="py-3.5 px-4 font-semibold">Job Title & Company</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold">Platform</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold">Posted</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold">Match Score</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold min-w-[280px]">AI Match Reason</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold text-center">Applied</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-sm">
+              <tr
+                *ngFor="let job of filteredCurrentJobs"
+                class="hover:bg-[#151724]/50 transition-colors duration-150 group"
+                [class.opacity-60]="job.isApplied"
+              >
+                <td class="py-4 px-4">
+                  <div class="font-semibold text-slate-100 group-hover:text-emerald-400 transition-colors">
+                    {{ job.jobTitle }}
+                  </div>
+                  <div class="text-xs text-slate-400 mt-0.5">
+                    <span class="font-medium text-slate-300">{{ job.company }}</span>
+                  </div>
+                </td>
+
+                <td class="py-4 px-4 whitespace-nowrap">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border" [ngClass]="getPlatformBadgeClass(job.platform)">
+                    {{ job.platform }}
+                  </span>
+                </td>
+
+                <td class="py-4 px-4 whitespace-nowrap text-xs text-slate-400 font-mono">
+                  {{ formatRelativeTime(job.postedDate) }}
+                </td>
+
+                <td class="py-4 px-4 whitespace-nowrap">
+                  <div class="flex items-center space-x-2">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border font-mono" [ngClass]="getScoreBadgeClass(job.matchScore)">
+                      {{ job.matchScore }}%
+                    </span>
+                    <div class="w-16 bg-slate-800 rounded-full h-1.5 overflow-hidden hidden lg:block">
+                      <div
+                        class="h-1.5 rounded-full"
+                        [style.width.%]="job.matchScore"
+                        [class.bg-emerald-400]="job.matchScore >= 80"
+                        [class.bg-amber-400]="job.matchScore >= 60 && job.matchScore < 80"
+                        [class.bg-rose-400]="job.matchScore < 60"
+                      ></div>
+                    </div>
+                  </div>
+                </td>
+
+                <td class="py-4 px-4 text-xs text-slate-300 leading-relaxed">
+                  <p class="line-clamp-2" [title]="job.matchReason">
+                    {{ job.matchReason }}
+                  </p>
+                </td>
+
+                <td class="py-4 px-4 text-center whitespace-nowrap">
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      [checked]="job.isApplied"
+                      (change)="toggleApplied(job)"
+                      class="sr-only peer"
+                    />
+                    <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </td>
+
+                <td class="py-4 px-4 text-right whitespace-nowrap">
+                  <a
+                    [href]="job.directLink"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-100 hover:text-white border border-slate-700 transition duration-150"
+                  >
+                    <span>Direct Apply</span>
+                    <span class="text-emerald-400">↗</span>
+                  </a>
+                </td>
+              </tr>
+
+              <!-- Empty state when no search run yet -->
+              <tr *ngIf="filteredCurrentJobs.length === 0">
+                <td colspan="7" class="py-12 px-4 text-center">
+                  <div class="flex flex-col items-center justify-center space-y-3">
+                    <div class="w-12 h-12 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-500 text-xl">
+                      🔍
+                    </div>
+                    <p class="text-sm font-medium text-slate-300">
+                      {{ hasSearchedCurrentSession ? 'No jobs matched the current criteria.' : 'No current search results yet' }}
+                    </p>
+                    <p class="text-xs text-slate-500 max-w-sm">
+                      Configure your role and profile above and click "Search & Scrape Jobs" to run the search. Previous searches can be viewed in the "Search History" tab.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- VIEW 2: JOB SEARCH HISTORY BY DATE         -->
+    <!-- ========================================== -->
+    <div *ngIf="activeTab === 'history'" class="space-y-8">
+      <!-- Date Selector & History Controls Header -->
+      <section class="bg-gradient-to-b from-[#11131c] to-[#0d0e17] rounded-2xl border border-slate-800/80 shadow-2xl p-6 sm:p-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div>
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              <span>📅 Job Search History</span>
+            </h1>
+            <p class="text-sm text-slate-400 mt-1">
+              Select a specific date to view the saved jobs and AI analysis from historical scrape batches.
+            </p>
+          </div>
+
+          <!-- Date Dropdown Picker -->
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+            <label for="historyDateSelect" class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Select Date:
+            </label>
+            <div class="relative min-w-[200px]">
+              <select
+                id="historyDateSelect"
+                [value]="selectedHistoryDate"
+                (change)="onDateChange($event)"
+                class="w-full bg-[#161824] border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm font-mono text-slate-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition duration-150 cursor-pointer"
+              >
+                <option *ngIf="availableDates.length === 0" value="">No history dates recorded</option>
+                <option *ngFor="let d of availableDates" [value]="d">
+                  {{ d }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- History Metrics for Selected Date -->
+      <section *ngIf="selectedHistoryDate" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="bg-[#10121b] border border-slate-800/80 rounded-xl p-4">
+          <p class="text-xs text-slate-400 font-medium">Scraped On {{ selectedHistoryDate }}</p>
+          <p class="text-2xl font-bold text-white mt-1">{{ historyJobs.length }}</p>
+          <span class="text-[11px] text-slate-500">Results saved for this date</span>
+        </div>
+
+        <div class="bg-[#10121b] border border-slate-800/80 rounded-xl p-4">
+          <p class="text-xs text-slate-400 font-medium">Applied Jobs (For This Date)</p>
+          <p class="text-2xl font-bold text-purple-400 mt-1">{{ historyAppliedCount }}</p>
+          <span class="text-[11px] text-slate-500">Status tracked in SQLite</span>
+        </div>
+      </section>
+
+      <!-- History Results Table -->
+      <section class="bg-[#0f111a] rounded-2xl border border-slate-800/80 shadow-2xl overflow-hidden">
+        <div class="p-5 border-b border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-bold text-white">Results for {{ selectedHistoryDate || 'Selected Date' }}</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Historical jobs filtered by the chosen calendar date</p>
+          </div>
+
+          <!-- History Platform Filter -->
+          <div *ngIf="historyJobs.length > 0" class="flex items-center space-x-2">
+            <span class="text-xs text-slate-400">Platform:</span>
+            <div class="inline-flex rounded-lg bg-[#161824] p-1 border border-slate-800">
+              <button
+                type="button"
+                (click)="historyPlatformFilter = 'All'"
+                [class.bg-emerald-500]="historyPlatformFilter === 'All'"
+                [class.text-black]="historyPlatformFilter === 'All'"
+                [class.text-slate-300]="historyPlatformFilter !== 'All'"
+                class="px-2.5 py-1 text-xs rounded-md font-medium transition duration-150"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                (click)="historyPlatformFilter = 'LinkedIn'"
+                [class.bg-emerald-500]="historyPlatformFilter === 'LinkedIn'"
+                [class.text-black]="historyPlatformFilter === 'LinkedIn'"
+                [class.text-slate-300]="historyPlatformFilter !== 'LinkedIn'"
+                class="px-2.5 py-1 text-xs rounded-md font-medium transition duration-150"
+              >
+                LinkedIn
+              </button>
+              <button
+                type="button"
+                (click)="historyPlatformFilter = 'Naukri'"
+                [class.bg-emerald-500]="historyPlatformFilter === 'Naukri'"
+                [class.text-black]="historyPlatformFilter === 'Naukri'"
+                [class.text-slate-300]="historyPlatformFilter !== 'Naukri'"
+                class="px-2.5 py-1 text-xs rounded-md font-medium transition duration-150"
+              >
+                Naukri
+              </button>
+              <button
+                type="button"
+                (click)="historyPlatformFilter = 'Instahyre'"
+                [class.bg-emerald-500]="historyPlatformFilter === 'Instahyre'"
+                [class.text-black]="historyPlatformFilter === 'Instahyre'"
+                [class.text-slate-300]="historyPlatformFilter !== 'Instahyre'"
+                class="px-2.5 py-1 text-xs rounded-md font-medium transition duration-150"
+              >
+                Instahyre
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- History Table Rows -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-[#141622]/60 text-slate-400 text-[11px] uppercase tracking-wider border-b border-slate-800/80">
+                <th scope="col" class="py-3.5 px-4 font-semibold">Job Title & Company</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold">Platform</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold">Scraped Timestamp</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold">Match Score</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold min-w-[280px]">AI Match Reason</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold text-center">Applied</th>
+                <th scope="col" class="py-3.5 px-4 font-semibold text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-sm">
+              <tr
+                *ngFor="let job of filteredHistoryJobs"
+                class="hover:bg-[#151724]/50 transition-colors duration-150 group"
+                [class.opacity-60]="job.isApplied"
+              >
+                <td class="py-4 px-4">
+                  <div class="font-semibold text-slate-100 group-hover:text-emerald-400 transition-colors">
+                    {{ job.jobTitle }}
+                  </div>
+                  <div class="text-xs text-slate-400 mt-0.5">
+                    <span class="font-medium text-slate-300">{{ job.company }}</span>
+                  </div>
+                </td>
+
+                <td class="py-4 px-4 whitespace-nowrap">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border" [ngClass]="getPlatformBadgeClass(job.platform)">
+                    {{ job.platform }}
+                  </span>
+                </td>
+
+                <td class="py-4 px-4 whitespace-nowrap text-xs text-slate-400 font-mono">
+                  {{ job.scrapeTimestamp | date:'shortTime' }}
+                </td>
+
+                <td class="py-4 px-4 whitespace-nowrap">
+                  <div class="flex items-center space-x-2">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold border font-mono" [ngClass]="getScoreBadgeClass(job.matchScore)">
+                      {{ job.matchScore }}%
+                    </span>
+                    <div class="w-16 bg-slate-800 rounded-full h-1.5 overflow-hidden hidden lg:block">
+                      <div
+                        class="h-1.5 rounded-full"
+                        [style.width.%]="job.matchScore"
+                        [class.bg-emerald-400]="job.matchScore >= 80"
+                        [class.bg-amber-400]="job.matchScore >= 60 && job.matchScore < 80"
+                        [class.bg-rose-400]="job.matchScore < 60"
+                      ></div>
+                    </div>
+                  </div>
+                </td>
+
+                <td class="py-4 px-4 text-xs text-slate-300 leading-relaxed">
+                  <p class="line-clamp-2" [title]="job.matchReason">
+                    {{ job.matchReason }}
+                  </p>
+                </td>
+
+                <td class="py-4 px-4 text-center whitespace-nowrap">
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      [checked]="job.isApplied"
+                      (change)="toggleApplied(job)"
+                      class="sr-only peer"
+                    />
+                    <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </td>
+
+                <td class="py-4 px-4 text-right whitespace-nowrap">
+                  <a
+                    [href]="job.directLink"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-100 hover:text-white border border-slate-700 transition duration-150"
+                  >
+                    <span>Direct Apply</span>
+                    <span class="text-emerald-400">↗</span>
+                  </a>
+                </td>
+              </tr>
+
+              <!-- Loading spinner for date change -->
+              <tr *ngIf="isHistoryLoading">
+                <td colspan="7" class="py-12 px-4 text-center">
+                  <div class="flex items-center justify-center space-x-2 text-slate-400 text-xs">
+                    <svg class="animate-spin h-5 w-5 text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>Loading jobs for selected date...</span>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Empty state when no jobs for selected date -->
+              <tr *ngIf="!isHistoryLoading && filteredHistoryJobs.length === 0">
+                <td colspan="7" class="py-12 px-4 text-center">
+                  <div class="flex flex-col items-center justify-center space-y-3">
+                    <div class="w-12 h-12 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-500 text-xl">
+                      📅
+                    </div>
+                    <p class="text-sm font-medium text-slate-300">No jobs found for the selected date</p>
+                    <p class="text-xs text-slate-500 max-w-sm">
+                      Select another date from the dropdown or perform a new search to populate records.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+  </main>
+</div>
