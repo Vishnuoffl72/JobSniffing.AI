@@ -1,5 +1,5 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://YOUR_RENDER_API_SERVICE_NAME.onrender.com/api/jobs'
+  apiUrl: 'https://jobsniffing-ai.onrender.com'
 };
 
