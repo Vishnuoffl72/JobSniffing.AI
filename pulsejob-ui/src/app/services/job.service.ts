@@ -9,7 +9,7 @@ import { environment } from '../../environments/environment';
 })
 export class JobService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = environment.apiUrl;
+  private readonly apiUrl = `${environment.apiUrl}/api/jobs`;
 
   searchJobs(request: JobSearchRequest): Observable<JobSearchResult[]> {
     return this.http.post<JobSearchResult[]>(`${this.apiUrl}/search`, request);
