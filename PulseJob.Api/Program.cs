@@ -25,12 +25,15 @@ builder.Services.AddHttpClient<IAiMatchingService, AiMatchingService>(client =>
     client.Timeout = TimeSpan.FromMinutes(2);
 });
 
-// Configure CORS for Angular Dashboard (Default dev port 4200)
+// Configure CORS for Angular Dashboard
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:4200", "http://127.0.0.1:4200" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("PulseJobCorsPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

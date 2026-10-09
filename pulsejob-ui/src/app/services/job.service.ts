@@ -2,14 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { JobSearchRequest, JobSearchResult } from '../models/job.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class JobService {
   private readonly http = inject(HttpClient);
-  // Default ASP.NET Core API dev URL
-  private readonly apiUrl = 'http://localhost:5247/api/jobs';
+  private readonly apiUrl = environment.apiUrl;
 
   searchJobs(request: JobSearchRequest): Observable<JobSearchResult[]> {
     return this.http.post<JobSearchResult[]>(`${this.apiUrl}/search`, request);
