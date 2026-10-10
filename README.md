@@ -1,6 +1,6 @@
 # JobSniffing AI ⚡
 
-Enterprise-grade personal full-stack job intelligence platform built with **ASP.NET Core Web API**, **Entity Framework Core (SQLite)**, **Google Gemini API**, and **Angular** (TypeScript + Tailwind CSS).
+Full-stack job search platform built with **ASP.NET Core Web API**, **Entity Framework Core (SQLite)**, **Google Gemini API**, and **Angular** (TypeScript + Tailwind CSS).
 
 ---
 
@@ -78,7 +78,7 @@ Open `PulseJob.Api/appsettings.json` and set your credentials:
 }
 ```
 
-> **Note:** If `YOUR_APIFY_TOKEN` or `YOUR_GEMINI_API_KEY` are left as placeholders, PulseJob AI operates in resilient fallback mode with high-fidelity realistic data and local heuristic scoring, allowing you to test the complete end-to-end pipeline immediately without third-party quotas!
+> **Note:** If `YOUR_APIFY_TOKEN` or `YOUR_GEMINI_API_KEY` are left as placeholders, Application operates with the dummy data without throwing any error.
 
 ---
 
