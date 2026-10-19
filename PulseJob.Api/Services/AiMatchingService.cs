@@ -10,7 +10,9 @@ public interface IAiMatchingService
 {
     Task<List<JobSearchResult>> FilterAndScoreJobsAsync(
         List<RawJobItem> rawJobs,
-        string resumeText,
+        List<string>? keywords,
+        string? experience,
+        string? resumeText,
         int postedWithinHours,
         DateTime scrapeTimestamp,
         CancellationToken ct = default);
@@ -31,13 +33,19 @@ public class AiMatchingService : IAiMatchingService
 
     public async Task<List<JobSearchResult>> FilterAndScoreJobsAsync(
         List<RawJobItem> rawJobs,
-        string resumeText,
+        List<string>? keywords,
+        string? experience,
+        string? resumeText,
         int postedWithinHours,
         DateTime scrapeTimestamp,
         CancellationToken ct = default)
     {
         var apiKey = _configuration["Gemini:ApiKey"];
         var model = _configuration["Gemini:Model"] ?? "gemini-2.5-flash";
+
+        var effectiveProfile = !string.IsNullOrWhiteSpace(resumeText)
+            ? resumeText
+            : $"Candidate Profile:\n- Skills/Keywords: {(keywords != null && keywords.Count > 0 ? string.Join(", ", keywords) : "Software Engineer")}\n- Experience: {experience}";
 
         // Pre-filter on posted date if known
         var cutoff = scrapeTimestamp.AddHours(-postedWithinHours);
@@ -48,15 +56,15 @@ public class AiMatchingService : IAiMatchingService
             candidateJobs = rawJobs; // fallback to evaluating all
         }
 
-        if (string.IsNullOrWhiteSpace(apiKey) || apiKey.Contains("YOUR_GEMINI_API_KEY"))
+        if (string.IsNullOrWhiteSpace(apiKey) || apiKey.Contains("YOUR_GEMINI_API_KEY") || apiKey.Contains("YOUR_API_KEY"))
         {
             _logger.LogWarning("Gemini:ApiKey not configured or contains placeholder. Executing intelligent local heuristic matching engine.");
-            return RunLocalIntelligenceMatching(candidateJobs, resumeText, postedWithinHours, scrapeTimestamp);
+            return RunLocalIntelligenceMatching(candidateJobs, keywords, experience, effectiveProfile, postedWithinHours, scrapeTimestamp);
         }
 
         try
         {
-            var prompt = BuildGeminiPrompt(candidateJobs, resumeText, postedWithinHours, scrapeTimestamp);
+            var prompt = BuildGeminiPrompt(candidateJobs, effectiveProfile, postedWithinHours, scrapeTimestamp);
             var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
             var requestBody = new
@@ -85,7 +93,7 @@ public class AiMatchingService : IAiMatchingService
             {
                 var errorText = await response.Content.ReadAsStringAsync(ct);
                 _logger.LogError("Gemini API call returned status {Status}: {Error}", response.StatusCode, errorText);
-                return RunLocalIntelligenceMatching(candidateJobs, resumeText, postedWithinHours, scrapeTimestamp);
+                return RunLocalIntelligenceMatching(candidateJobs, keywords, experience, effectiveProfile, postedWithinHours, scrapeTimestamp);
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(ct);
@@ -100,7 +108,7 @@ public class AiMatchingService : IAiMatchingService
 
             if (string.IsNullOrWhiteSpace(textResponse))
             {
-                return RunLocalIntelligenceMatching(candidateJobs, resumeText, postedWithinHours, scrapeTimestamp);
+                return RunLocalIntelligenceMatching(candidateJobs, keywords, experience, effectiveProfile, postedWithinHours, scrapeTimestamp);
             }
 
             var scoredItems = JsonSerializer.Deserialize<List<GeminiJobScoreResult>>(textResponse, new JsonSerializerOptions
@@ -110,23 +118,25 @@ public class AiMatchingService : IAiMatchingService
 
             if (scoredItems == null || scoredItems.Count == 0)
             {
-                return RunLocalIntelligenceMatching(candidateJobs, resumeText, postedWithinHours, scrapeTimestamp);
+                return RunLocalIntelligenceMatching(candidateJobs, keywords, experience, effectiveProfile, postedWithinHours, scrapeTimestamp);
             }
 
             var results = new List<JobSearchResult>();
-            foreach (var item in scoredItems)
+            for (int i = 0; i < scoredItems.Count; i++)
             {
-                // Only include if match score is reasonable or matches threshold
+                var item = scoredItems[i];
+                var rawJob = i < candidateJobs.Count ? candidateJobs[i] : null;
+
                 results.Add(new JobSearchResult
                 {
                     ScrapeTimestamp = scrapeTimestamp,
-                    JobTitle = item.JobTitle ?? "Software Engineer",
-                    Company = item.Company ?? "Enterprise",
-                    Platform = item.Platform ?? "LinkedIn",
-                    DirectLink = item.DirectLink ?? "https://linkedin.com",
+                    JobTitle = item.JobTitle ?? rawJob?.Title ?? "Software Engineer",
+                    Company = item.Company ?? rawJob?.CompanyName ?? "Enterprise",
+                    Platform = item.Platform ?? rawJob?.Platform ?? "LinkedIn",
+                    DirectLink = !string.IsNullOrWhiteSpace(rawJob?.DirectUrl) ? rawJob.DirectUrl : (item.DirectLink ?? "https://linkedin.com"),
                     MatchScore = Math.Clamp(item.MatchScore, 0, 100),
                     MatchReason = item.MatchReason ?? "Matches requirements in technical background.",
-                    PostedDate = item.PostedDate ?? scrapeTimestamp.AddHours(-2),
+                    PostedDate = rawJob?.PublishedAt ?? item.PostedDate ?? scrapeTimestamp.AddHours(-1),
                     IsApplied = false
                 });
             }
@@ -136,11 +146,11 @@ public class AiMatchingService : IAiMatchingService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Gemini API processing failed, falling back to local matching engine.");
-            return RunLocalIntelligenceMatching(candidateJobs, resumeText, postedWithinHours, scrapeTimestamp);
+            return RunLocalIntelligenceMatching(candidateJobs, keywords, experience, effectiveProfile, postedWithinHours, scrapeTimestamp);
         }
     }
 
-    private string BuildGeminiPrompt(List<RawJobItem> rawJobs, string resumeText, int postedWithinHours, DateTime scrapeTimestamp)
+    private string BuildGeminiPrompt(List<RawJobItem> rawJobs, string candidateProfile, int postedWithinHours, DateTime scrapeTimestamp)
     {
         var jobsJson = JsonSerializer.Serialize(rawJobs.Select(j => new
         {
@@ -154,11 +164,11 @@ public class AiMatchingService : IAiMatchingService
 
         return $$"""
 You are an expert AI Career Matchmaker and Technical Recruiter.
-Analyze the following list of scraped jobs against the candidate's resume text.
+Analyze the following list of scraped jobs against the candidate's profile.
 
-CANDIDATE RESUME:
+CANDIDATE PROFILE:
 \"\"\"
-{{resumeText}}
+{{candidateProfile}}
 \"\"\"
 
 SCRAPED RAW JOBS:
@@ -180,7 +190,7 @@ Respond with a strict JSON array of objects conforming to this schema without ma
     "directLink": "string",
     "matchScore": 88,
     "matchReason": "1-sentence reason",
-    "postedDate": "2026-10-06T12:00:00Z"
+    "postedDate": "2026-10-18T12:00:00Z"
   }
 ]
 """;
@@ -188,13 +198,28 @@ Respond with a strict JSON array of objects conforming to this schema without ma
 
     private List<JobSearchResult> RunLocalIntelligenceMatching(
         List<RawJobItem> rawJobs,
-        string resumeText,
+        List<string>? userKeywords,
+        string? experience,
+        string profileText,
         int postedWithinHours,
         DateTime scrapeTimestamp)
     {
-        var lowerResume = (resumeText ?? "").ToLowerInvariant();
-        var keywords = new[] { "c#", ".net", "asp.net", "angular", "typescript", "react", "sql", "sqlite", "cloud", "azure", "aws", "docker", "api", "tailwind" };
-        var matchedKeywords = keywords.Where(k => lowerResume.Contains(k)).ToList();
+        var lowerProfile = (profileText ?? "").ToLowerInvariant();
+        var keywords = new List<string>();
+
+        if (userKeywords != null)
+        {
+            keywords.AddRange(userKeywords.Select(k => k.ToLowerInvariant().Trim()));
+        }
+
+        var defaultKeywords = new[] { "c#", ".net", "asp.net", "angular", "typescript", "react", "sql", "sqlite", "cloud", "azure", "aws", "docker", "api", "tailwind", "python", "java" };
+        foreach (var dk in defaultKeywords)
+        {
+            if (lowerProfile.Contains(dk) && !keywords.Contains(dk))
+            {
+                keywords.Add(dk);
+            }
+        }
 
         var results = new List<JobSearchResult>();
 
@@ -203,28 +228,32 @@ Respond with a strict JSON array of objects conforming to this schema without ma
             var jobText = $"{job.Title} {job.DescriptionSnippet}".ToLowerInvariant();
             int score = 65; // base score
 
-            // Title relevance bonus
-            if (jobText.Contains("full stack") && (lowerResume.Contains("full stack") || lowerResume.Contains("fullstack"))) score += 12;
-            if (jobText.Contains(".net") && (lowerResume.Contains(".net") || lowerResume.Contains("c#"))) score += 10;
-            if (jobText.Contains("angular") && lowerResume.Contains("angular")) score += 10;
-            if (jobText.Contains("senior") || jobText.Contains("lead"))
+            // Check match against user keywords
+            int keywordHits = 0;
+            foreach (var kw in keywords)
             {
-                if (lowerResume.Contains("senior") || lowerResume.Contains("lead") || lowerResume.Contains("years")) score += 5;
+                if (jobText.Contains(kw))
+                {
+                    score += 6;
+                    keywordHits++;
+                }
             }
 
-            // Keyword overlap
-            foreach (var kw in matchedKeywords)
+            // Experience check
+            if (!string.IsNullOrWhiteSpace(experience))
             {
-                if (jobText.Contains(kw)) score += 3;
+                var expLower = experience.ToLowerInvariant();
+                if (expLower.Contains("fresher") && (jobText.Contains("entry") || jobText.Contains("junior") || jobText.Contains("0-1"))) score += 10;
+                else if ((expLower.Contains("senior") || expLower.Contains("lead") || expLower.Contains("5+") || expLower.Contains("6") || expLower.Contains("8")) && (jobText.Contains("senior") || jobText.Contains("lead") || jobText.Contains("tier 1") || jobText.Contains("architect"))) score += 10;
             }
 
-            score = Math.Clamp(score + Random.Shared.Next(-3, 6), 45, 98);
+            score = Math.Clamp(score + Random.Shared.Next(-2, 5), 50, 98);
 
             string reason = score switch
             {
-                >= 90 => $"Exceptional match: Strong alignment in {string.Join(", ", matchedKeywords.Take(3).DefaultIfEmpty("core full-stack skills"))} and architecture requirements.",
-                >= 75 => $"Strong match: High synergy with your tech stack with immediate applicability to their engineering stack.",
-                _ => "Moderate match: Core competencies fit role criteria; minor gap in specialized niche tooling."
+                >= 90 => $"Exceptional match: High alignment in {(keywords.Count > 0 ? string.Join(", ", keywords.Take(3)) : "core skills")} and experience criteria.",
+                >= 75 => $"Strong match: Good synergy with your skillset with immediate applicability to their stack.",
+                _ => "Moderate match: Core competencies fit role criteria; minor gap in niche tooling."
             };
 
             results.Add(new JobSearchResult
@@ -236,7 +265,7 @@ Respond with a strict JSON array of objects conforming to this schema without ma
                 DirectLink = job.DirectUrl,
                 MatchScore = score,
                 MatchReason = reason,
-                PostedDate = job.PublishedAt ?? scrapeTimestamp.AddHours(-Random.Shared.Next(1, Math.Max(2, postedWithinHours))),
+                PostedDate = job.PublishedAt ?? scrapeTimestamp.AddHours(-1),
                 IsApplied = false
             });
         }
@@ -268,4 +297,3 @@ Respond with a strict JSON array of objects conforming to this schema without ma
         public DateTime? PostedDate { get; set; }
     }
 }
-

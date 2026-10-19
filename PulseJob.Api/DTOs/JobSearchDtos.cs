@@ -4,19 +4,23 @@ namespace PulseJob.Api.DTOs;
 
 public class JobSearchRequest
 {
-    [Required]
+    public List<string> Keywords { get; set; } = new();
+
     public string JobTitle { get; set; } = string.Empty;
 
     [Required]
     public string Location { get; set; } = string.Empty;
 
+    public string Experience { get; set; } = string.Empty;
+
     /// <summary>
-    /// Filtering threshold in hours, e.g. 12, 24, 48.
+    /// Filtering threshold in hours, e.g. 24, 72, 168.
     /// </summary>
     public int PostedWithinHours { get; set; } = 24;
 
-    [Required]
-    public string ResumeText { get; set; } = string.Empty;
+    public string? Freshness { get; set; }
+
+    public string? ResumeText { get; set; }
 }
 
 public class RawJobItem

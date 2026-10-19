@@ -12,9 +12,11 @@ export interface JobSearchResult {
 }
 
 export interface JobSearchRequest {
-  jobTitle: string;
+  keywords: string[];
+  jobTitle?: string;
   location: string;
+  experience: string;
   postedWithinHours: number;
-  resumeText: string;
+  freshness?: string;
+  resumeText?: string;
 }
-

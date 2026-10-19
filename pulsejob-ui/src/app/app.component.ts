@@ -2,7 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { JobService } from './services/job.service';
-import { JobSearchResult } from './models/job.model';
+import { JobSearchResult, JobSearchRequest } from './models/job.model';
 
 @Component({
   selector: 'app-root',
@@ -18,16 +18,17 @@ export class AppComponent implements OnInit {
   // Active view: 'search' (current instance search) vs 'history' (search history by date)
   activeTab: 'search' | 'history' = 'search';
 
+  // Keyword / Skills chips state
+  keywords: string[] = [];
+  keywordInput: string = '';
+  keywordError: string | null = null;
+  suggestedSkills: string[] = ['.NET', 'Angular', 'React', 'C#', 'Python', 'Full Stack Developer', 'Node.js', 'SQL', 'AWS', 'Docker'];
+
+  // Search form - initialized without prefilled values, placeholders used in template
   searchForm: FormGroup = this.fb.group({
-    jobTitle: ['Senior Full Stack Engineer (.NET / Angular)', [Validators.required]],
-    location: ['Bangalore / Remote', [Validators.required]],
-    postedWithinHours: [24, [Validators.required]],
-    resumeText: [
-`SENIOR FULL STACK SOFTWARE ENGINEER
-Key Skills: C#, .NET 8/9, ASP.NET Core Web API, Entity Framework Core, SQLite/PostgreSQL, Angular, TypeScript, Tailwind CSS, Docker, Microservices, REST APIs, Distributed Caching.
-Experience: 6+ years building high-performance scalable web systems and cloud applications. Experienced in architecting robust REST endpoints, optimizing database queries, and designing responsive enterprise dashboards.`,
-      [Validators.required]
-    ]
+    location: ['', [Validators.required]],
+    experience: ['', [Validators.required]],
+    postedWithinHours: ['', [Validators.required]]
   });
 
   // Current instance search state (Only displays results from the current search run)
@@ -47,6 +48,36 @@ Experience: 6+ years building high-performance scalable web systems and cloud ap
 
   ngOnInit(): void {
     this.loadAvailableDates();
+  }
+
+  addKeyword(value?: string): void {
+    const raw = (value !== undefined ? value : this.keywordInput).trim();
+    if (!raw) return;
+
+    // Handle comma-separated input or single entry
+    const items = raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    for (const item of items) {
+      if (!this.keywords.some(k => k.toLowerCase() === item.toLowerCase())) {
+        this.keywords.push(item);
+      }
+    }
+    this.keywordInput = '';
+    this.keywordError = null;
+  }
+
+  removeKeyword(index: number): void {
+    if (index >= 0 && index < this.keywords.length) {
+      this.keywords.splice(index, 1);
+    }
+  }
+
+  onKeywordKeyDown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' || event.key === ',') {
+      event.preventDefault();
+      this.addKeyword();
+    } else if (event.key === 'Backspace' && !this.keywordInput && this.keywords.length > 0) {
+      this.keywords.pop();
+    }
   }
 
   loadAvailableDates(): void {
@@ -101,7 +132,14 @@ Experience: 6+ years building high-performance scalable web systems and cloud ap
   }
 
   onSubmit(): void {
-    if (this.searchForm.invalid) {
+    // Validate keywords
+    if (this.keywords.length === 0) {
+      this.keywordError = 'Please add at least one skill or keyword.';
+    } else {
+      this.keywordError = null;
+    }
+
+    if (this.searchForm.invalid || this.keywords.length === 0) {
       this.searchForm.markAllAsTouched();
       return;
     }
@@ -109,8 +147,14 @@ Experience: 6+ years building high-performance scalable web systems and cloud ap
     this.isLoading = true;
     this.errorMessage = null;
 
-    const req = this.searchForm.value;
-    req.postedWithinHours = Number(req.postedWithinHours);
+    const formVal = this.searchForm.value;
+    const req: JobSearchRequest = {
+      keywords: this.keywords,
+      jobTitle: this.keywords.join(' '),
+      location: formVal.location,
+      experience: formVal.experience,
+      postedWithinHours: Number(formVal.postedWithinHours) || 24
+    };
 
     this.jobService.searchJobs(req).subscribe({
       next: (results) => {
@@ -186,11 +230,24 @@ Experience: 6+ years building high-performance scalable web systems and cloud ap
   }
 
   formatRelativeTime(dateStr: string): string {
-    const date = new Date(dateStr);
-    const diffHours = Math.round((new Date().getTime() - date.getTime()) / (1000 * 60 * 60));
-    if (diffHours <= 1) return 'Just now';
+    if (!dateStr) return 'Recently';
+    const text = String(dateStr).trim();
+    if (text.toLowerCase().includes('ago') || text.toLowerCase().includes('just now') || text.toLowerCase().includes('today')) {
+      return text;
+    }
+
+    const date = new Date(text);
+    if (isNaN(date.getTime())) return 'Recently';
+
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+
+    if (diffHours <= 0) return 'Just now';
+    if (diffHours === 1) return '1h ago';
     if (diffHours < 24) return `${diffHours}h ago`;
     const diffDays = Math.round(diffHours / 24);
+    if (diffDays === 1) return '1d ago';
     return `${diffDays}d ago`;
   }
 }

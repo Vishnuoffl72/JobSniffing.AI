@@ -34,21 +34,34 @@ public class JobsController : ControllerBase
     [HttpPost("search")]
     public async Task<ActionResult<List<JobSearchResult>>> SearchJobs([FromBody] JobSearchRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.JobTitle))
+        if ((request.Keywords == null || request.Keywords.Count == 0) && string.IsNullOrWhiteSpace(request.JobTitle))
         {
-            return BadRequest("Job title is required.");
+            return BadRequest("At least one keyword/skill or job title is required.");
         }
 
         var scrapeTimestamp = DateTime.UtcNow;
-        _logger.LogInformation("Initiating job search for '{JobTitle}' in '{Location}' (within {Hours}h)", 
-            request.JobTitle, request.Location, request.PostedWithinHours);
+        var displayQuery = (request.Keywords != null && request.Keywords.Count > 0)
+            ? string.Join(", ", request.Keywords)
+            : request.JobTitle;
 
-        // 1. Fetch raw scraped results across LinkedIn, Naukri, Instahyre using extracted keywords
-        var rawJobs = await _apifyService.FetchJobsAsync(request.JobTitle, request.Location, request.PostedWithinHours, request.ResumeText, ct);
+        _logger.LogInformation("Initiating job search for keywords: '{Keywords}' in '{Location}', Exp: '{Exp}' (within {Hours}h)", 
+            displayQuery, request.Location, request.Experience, request.PostedWithinHours);
 
-        // 2. Process via Gemini AI matching service
+        // 1. Fetch raw scraped results across LinkedIn, Naukri, Instahyre using direct keywords & experience
+        var rawJobs = await _apifyService.FetchJobsAsync(
+            request.Keywords ?? new List<string>(), 
+            request.JobTitle, 
+            request.Location, 
+            request.PostedWithinHours, 
+            request.Experience, 
+            request.ResumeText, 
+            ct);
+
+        // 2. Process via AI matching service
         var scoredJobs = await _aiMatchingService.FilterAndScoreJobsAsync(
             rawJobs,
+            request.Keywords,
+            request.Experience,
             request.ResumeText,
             request.PostedWithinHours,
             scrapeTimestamp,

@@ -10,9 +10,6 @@
           <span class="text-lg font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-slate-400">
             JobSniffing AI
           </span>
-          <span class="ml-2 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            Enterprise v1.0
-          </span>
         </div>
       </div>
 
@@ -70,39 +67,90 @@
         <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800/80 pb-5">
           <div>
             <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <span>Job Search & Intelligence Configuration</span>
+              <span>Job Search</span>
             </h1>
             <p class="text-sm text-slate-400 mt-1">
-              Specify targeting filters, paste candidate resume, and trigger synchronized multi-platform scraping & AI scoring.
+              Specify targeting filters, add skill tags and trigger synchronized multi-platform scraping & AI scoring.
             </p>
           </div>
         </div>
 
         <form [formGroup]="searchForm" (ngSubmit)="onSubmit()" class="space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <!-- Job Title Input -->
-            <div class="space-y-1.5">
-              <label for="jobTitle" class="block text-xs font-medium text-slate-300 uppercase tracking-wider">
-                Target Role / Title <span class="text-emerald-400">*</span>
+          <!-- 1. Keywords / Skills Chip Input Layout (Naukri-style) -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                Skills & Target Keywords <span class="text-emerald-400">*</span>
               </label>
-              <div class="relative">
-                <input
-                  id="jobTitle"
-                  type="text"
-                  formControlName="jobTitle"
-                  required
-                  class="w-full bg-[#161824] border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition duration-150"
-                  placeholder="e.g. Full Stack Developer, Tech Lead"
-                />
-              </div>
-              <div *ngIf="searchForm.get('jobTitle')?.touched && searchForm.get('jobTitle')?.invalid" class="text-xs text-rose-400 flex items-center gap-1 pt-1">
-                <span>✕</span> Job title is required.
-              </div>
+              <span class="text-xs text-slate-400">Type keyword and press Enter or Comma to add</span>
             </div>
 
-            <!-- Location Input -->
+            <!-- Chips container -->
+            <div
+              class="w-full bg-[#161824] border border-slate-700/80 rounded-xl px-3 py-2.5 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500 transition duration-150 flex flex-wrap items-center gap-2 min-h-[46px]"
+              [class.border-rose-500]="keywordError"
+            >
+              <!-- Rendered Skill Chips -->
+              <span
+                *ngFor="let kw of keywords; let i = index"
+                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 group animate-fadeIn"
+              >
+                <span>{{ kw }}</span>
+                <button
+                  type="button"
+                  (click)="removeKeyword(i)"
+                  class="text-emerald-400 hover:text-white transition-colors duration-150 rounded-full w-4 h-4 flex items-center justify-center text-[10px] leading-none"
+                  aria-label="Remove skill"
+                >
+                  ✕
+                </button>
+              </span>
+
+              <!-- Inline Text Input for Adding Skills -->
+              <input
+                type="text"
+                [(ngModel)]="keywordInput"
+                [ngModelOptions]="{standalone: true}"
+                (keydown)="onKeywordKeyDown($event)"
+                (blur)="addKeyword()"
+                [placeholder]="keywords.length === 0 ? 'Type a skill or role (e.g. .NET, Angular, C#) and press Enter...' : 'Add more skills...'"
+                class="flex-1 bg-transparent border-0 text-sm text-slate-100 placeholder-slate-500 focus:outline-none min-w-[200px] py-1"
+              />
+
+              <button
+                type="button"
+                *ngIf="keywordInput.trim().length > 0"
+                (click)="addKeyword()"
+                class="px-2.5 py-1 text-xs rounded-md bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border border-emerald-500/30 transition duration-150 font-medium"
+              >
+                + Add
+              </button>
+            </div>
+
+            <!-- Validation Error Message -->
+            <div *ngIf="keywordError" class="text-xs text-rose-400 flex items-center gap-1 pt-0.5">
+              <span>✕</span> {{ keywordError }}
+            </div>
+
+            <!-- Quick Suggestions -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-1">
+              <span class="text-[11px] text-slate-400 mr-1">Suggestions:</span>
+              <button
+                type="button"
+                *ngFor="let suggestion of suggestedSkills"
+                (click)="addKeyword(suggestion)"
+                class="text-[11px] px-2.5 py-0.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition duration-150"
+              >
+                + {{ suggestion }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Grid for Location, Experience, and Freshness -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <!-- 2. Location Input -->
             <div class="space-y-1.5">
-              <label for="location" class="block text-xs font-medium text-slate-300 uppercase tracking-wider">
+              <label for="location" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
                 Target Location <span class="text-emerald-400">*</span>
               </label>
               <input
@@ -118,10 +166,28 @@
               </div>
             </div>
 
-            <!-- Time Posted Filter Dropdown -->
+            <!-- 3. Experience Input -->
             <div class="space-y-1.5">
-              <label for="postedWithinHours" class="block text-xs font-medium text-slate-300 uppercase tracking-wider">
-                Freshness Threshold <span class="text-emerald-400">*</span>
+              <label for="experience" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                Experience <span class="text-emerald-400">*</span>
+              </label>
+              <input
+                id="experience"
+                type="text"
+                formControlName="experience"
+                required
+                class="w-full bg-[#161824] border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition duration-150"
+                placeholder="e.g. 2-5 years, 3+, or Fresher"
+              />
+              <div *ngIf="searchForm.get('experience')?.touched && searchForm.get('experience')?.invalid" class="text-xs text-rose-400 flex items-center gap-1 pt-1">
+                <span>✕</span> Experience is required.
+              </div>
+            </div>
+
+            <!-- 4. Freshness Filter Dropdown -->
+            <div class="space-y-1.5">
+              <label for="postedWithinHours" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                Freshness <span class="text-emerald-400">*</span>
               </label>
               <select
                 id="postedWithinHours"
@@ -129,32 +195,16 @@
                 required
                 class="w-full bg-[#161824] border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition duration-150 appearance-none cursor-pointer"
               >
-                <option [value]="12">Past 12 Hours (High Freshness)</option>
-                <option [value]="24">Past 24 Hours (Standard)</option>
-                <option [value]="48">Past 48 Hours</option>
+                <option value="" disabled selected>Select freshness threshold</option>
+                <option [value]="24">Past 24 Hours (1 Day)</option>
                 <option [value]="72">Past 3 Days</option>
+                <option [value]="168">Past 7 Days (1 Week)</option>
+                <option [value]="336">Past 14 Days (2 Weeks)</option>
+                <option [value]="720">Past 30 Days (1 Month)</option>
               </select>
-            </div>
-          </div>
-
-          <!-- Resume Textarea -->
-          <div class="space-y-1.5">
-            <div class="flex items-center justify-between">
-              <label for="resumeText" class="block text-xs font-medium text-slate-300 uppercase tracking-wider">
-                Candidate Resume / Tech Profile <span class="text-emerald-400">*</span>
-              </label>
-              <span class="text-xs text-slate-400">Used for focused keyword search & AI scoring</span>
-            </div>
-            <textarea
-              id="resumeText"
-              rows="4"
-              formControlName="resumeText"
-              required
-              class="w-full bg-[#161824] border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition duration-150 font-mono text-xs leading-relaxed"
-              placeholder="Paste candidate resume, key skills, experience, or tech stack summary..."
-            ></textarea>
-            <div *ngIf="searchForm.get('resumeText')?.touched && searchForm.get('resumeText')?.invalid" class="text-xs text-rose-400 flex items-center gap-1 pt-1">
-              <span>✕</span> Resume content is required for AI matching.
+              <div *ngIf="searchForm.get('postedWithinHours')?.touched && searchForm.get('postedWithinHours')?.invalid" class="text-xs text-rose-400 flex items-center gap-1 pt-1">
+                <span>✕</span> Freshness threshold is required.
+              </div>
             </div>
           </div>
 
@@ -304,7 +354,7 @@
                   </span>
                 </td>
 
-                <td class="py-4 px-4 whitespace-nowrap text-xs text-slate-400 font-mono">
+                <td class="py-4 px-4 whitespace-nowrap text-xs text-slate-400 font-mono" [title]="job.postedDate | date:'medium'">
                   {{ formatRelativeTime(job.postedDate) }}
                 </td>
 
